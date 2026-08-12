@@ -1,10 +1,12 @@
+import json
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
-import asyncpg
+from aiokafka import AIOKafkaProducer
 from fastapi import FastAPI
 from pydantic import BaseModel, Field
 
-DB_DSN = "postgresql://icu:icu_dev@localhost:5432/icu"
+KAFKA_BOOTSTRAP = "localhost:9092"
+TOPIC = "vitals"
 
 class Reading(BaseModel):
     patient_id: str
@@ -16,18 +18,20 @@ class Reading(BaseModel):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    app.state.pool = await asyncpg.create_pool(DB_DSN)
+    app.state.producer = AIOKafkaProducer(bootstrap_servers=KAFKA_BOOTSTRAP)
+    await app.state.producer.start()
     yield
-    await app.state.pool.close()
+    await app.state.producer.stop()
 
 app = FastAPI(lifespan=lifespan)
 
 @app.post("/readings", status_code=202)
 async def ingest(r: Reading):
-    await app.state.pool.execute(
-        """INSERT INTO vitals (time, patient_id, hr, spo2, bp_sys, bp_dia, resp_rate)
-           VALUES ($1,$2,$3,$4,$5,$6,$7)""",
-        datetime.now(timezone.utc), r.patient_id, r.hr, r.spo2,
-        r.bp_sys, r.bp_dia, r.resp_rate,
+    event = r.model_dump()
+    event["time"] = datetime.now(timezone.utc).isoformat()
+    await app.state.producer.send_and_wait(
+        TOPIC,
+        json.dumps(event).encode(),
+        key=r.patient_id.encode(),   # same patient -> same partition -> ordered
     )
     return {"ok": True}
