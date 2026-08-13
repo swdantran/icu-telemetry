@@ -18,3 +18,13 @@ INSERT INTO patients (id, name, bed, baseline_hr, baseline_spo2) VALUES
   ('p1', 'Sim Patient 1', 'ICU-01', 72, 97),
   ('p2', 'Sim Patient 2', 'ICU-02', 85, 96),
   ('p3', 'Sim Patient 3', 'ICU-03', 64, 98);
+
+CREATE TABLE IF NOT EXISTS alerts (
+  id SERIAL PRIMARY KEY,
+  time TIMESTAMPTZ NOT NULL DEFAULT now(),
+  patient_id TEXT NOT NULL REFERENCES patients(id),
+  severity TEXT NOT NULL,
+  rule TEXT NOT NULL,
+  detail TEXT,
+  acknowledged_at TIMESTAMPTZ
+);
