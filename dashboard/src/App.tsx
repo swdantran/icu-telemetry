@@ -39,7 +39,7 @@ export default function App() {
 
   return (
     <div style={{ fontFamily: "system-ui", background: "#0f172a", minHeight: "100vh", color: "#e2e8f0", padding: 24 }}>
-      <h1 style={{ margin: "0 0 16px" }}>ICU Ward — Live Telemetry <span style={{ fontSize: 14, color: "#64748b" }}>(simulated)</span></h1>
+      <h1 style={{ margin: "0 0 16px" }}>ICU Ward - Live Telemetry <span style={{ fontSize: 14, color: "#64748b" }}>(simulated)</span></h1>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 16 }}>
         {Object.values(patients).map((v) => (
           <div key={v.patient_id} style={{
