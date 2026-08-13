@@ -1,14 +1,24 @@
 import asyncio, math, random, time
 import numpy as np
 import httpx
+import string
 
 INGEST_URL = "http://localhost:8000/readings"
 
-PATIENTS = [
-    {"id": "p1", "hr": 72, "spo2": 97, "bp_sys": 118, "resp": 14},
-    {"id": "p2", "hr": 85, "spo2": 96, "bp_sys": 132, "resp": 16},
-    {"id": "p3", "hr": 64, "spo2": 98, "bp_sys": 110, "resp": 12},
-]
+def make_ward(n=30):
+    rng = random.Random(42)  
+    ward = []
+    for i in range(1, n + 1):
+        ward.append({
+            "id": f"p{i}",
+            "hr": rng.randint(58, 92),
+            "spo2": rng.randint(95, 99),
+            "bp_sys": rng.randint(105, 140),
+            "resp": rng.randint(11, 18),
+        })
+    return ward
+
+PATIENTS = make_ward(30)
 
 # Scripted event: 90s after launch, p2 begins desaturating over ~2 minutes
 EVENT = {"patient_id": "p2", "start": 90, "duration": 120,
