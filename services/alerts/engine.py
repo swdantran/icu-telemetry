@@ -12,7 +12,7 @@ DB_DSN = "postgresql://icu:icu_dev@localhost:5432/icu"
 
 WINDOW = 60          # rolling window size (readings) per patient per vital
 COOLDOWN = 30        # seconds before re-alerting same patient+rule
-Z_LIMIT = 3.0        # trend alert if value drifts 3 std devs from baseline
+Z_LIMIT = 4.5        # trend alert if value drifts 4.5 std devs from baseline
 
 THRESHOLDS = [       # (vital, op, limit, severity) - most severe first per vital
     ("spo2", "lt", 90, "critical"),
@@ -43,11 +43,12 @@ def check_trend(e):
     for vital in ("hr", "spo2"):
         key = (e["patient_id"], vital)
         w = windows.setdefault(key, deque(maxlen=WINDOW))
-        if len(w) >= 30:  # need enough history for a meaningful baseline
+        if len(w) >= WINDOW:  # need enough history for a meaningful baseline
             mean = statistics.mean(w)
             stdev = statistics.pstdev(w) or 0.1
             z = (e[vital] - mean) / stdev
-            if abs(z) >= Z_LIMIT:
+            dangerous = z >= Z_LIMIT if vital == "hr" else z <= -Z_LIMIT
+            if dangerous:
                 hits.append(("warning", f"trend:{vital}_z",
                              f"{vital}={e[vital]} is {z:+.1f} std devs from baseline {mean:.1f}"))
         w.append(e[vital])

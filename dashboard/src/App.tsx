@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 type Vitals = { patient_id: string; hr: number; spo2: number; bp_sys: number; bp_dia: number; resp_rate: number; time: string };
 type Alert = { patient_id: string; severity: string; rule: string; detail: string; time: string };
@@ -6,7 +6,7 @@ type Alert = { patient_id: string; severity: string; rule: string; detail: strin
 export default function App() {
   const [patients, setPatients] = useState<Record<string, Vitals>>({});
   const [alerts, setAlerts] = useState<Alert[]>([]);
-  const alertFlash = useRef<Record<string, number>>({});
+  const [alertFlash, setAlertFlash] = useState<Record<string, number>>({});
 
   useEffect(() => {
     let ws: WebSocket;
@@ -18,8 +18,12 @@ export default function App() {
         if (msg.type === "vitals") {
           setPatients((p) => ({ ...p, [msg.data.patient_id]: msg.data }));
         } else if (msg.type === "alert") {
-          setAlerts((a) => [msg.data, ...a].slice(0, 20));
-          alertFlash.current[msg.data.patient_id] = Date.now();
+          setAlerts((a) => {
+            const k = (x: Alert) => x.time + x.patient_id + x.rule;
+            if (a.some((x) => k(x) === k(msg.data))) return a;
+            return [msg.data, ...a].slice(0, 20);
+          });
+          setAlertFlash((f) => ({ ...f, [msg.data.patient_id]: Date.now() }));
         }
       };
       ws.onclose = () => { retry = setTimeout(connect, 2000); };
@@ -28,8 +32,10 @@ export default function App() {
     return () => { clearTimeout(retry); ws?.close(); };
   }, []);
 
+  // eslint-disable-next-line react-hooks/purity
+  const now = Date.now();
   const isAlerting = (pid: string) =>
-    Date.now() - (alertFlash.current[pid] ?? 0) < 30_000;
+    now - (alertFlash[pid] ?? 0) < 30_000;
 
   return (
     <div style={{ fontFamily: "system-ui", background: "#0f172a", minHeight: "100vh", color: "#e2e8f0", padding: 24 }}>
