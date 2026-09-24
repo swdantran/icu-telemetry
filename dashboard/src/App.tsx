@@ -10,26 +10,63 @@ export default function App() {
 
   useEffect(() => {
     let ws: WebSocket;
-    let retry: number;
+    let retry: ReturnType<typeof setTimeout>;
+    let stopped = false;
+  
     const connect = () => {
-      ws = new WebSocket("ws://localhost:8001/ws");
+      if (stopped) return;
+  
+      ws = new WebSocket("ws://127.0.0.1:8001/ws");
+  
+      ws.onopen = () => {
+        console.log("Connected to ICU telemetry");
+      };
+  
       ws.onmessage = (ev) => {
         const msg = JSON.parse(ev.data);
+  
         if (msg.type === "vitals") {
-          setPatients((p) => ({ ...p, [msg.data.patient_id]: msg.data }));
+          setPatients((p) => ({
+            ...p,
+            [msg.data.patient_id]: msg.data,
+          }));
         } else if (msg.type === "alert") {
           setAlerts((a) => {
-            const k = (x: Alert) => x.time + x.patient_id + x.rule;
-            if (a.some((x) => k(x) === k(msg.data))) return a;
+            const k = (x: Alert) =>
+              x.time + x.patient_id + x.rule;
+  
+            if (a.some((x) => k(x) === k(msg.data))) {
+              return a;
+            }
+  
             return [msg.data, ...a].slice(0, 20);
           });
-          setAlertFlash((f) => ({ ...f, [msg.data.patient_id]: Date.now() }));
+  
+          setAlertFlash((f) => ({
+            ...f,
+            [msg.data.patient_id]: Date.now(),
+          }));
         }
       };
-      ws.onclose = () => { retry = setTimeout(connect, 2000); };
+  
+      ws.onclose = () => {
+        if (!stopped) {
+          retry = setTimeout(connect, 2000);
+        }
+      };
+  
+      ws.onerror = () => {
+        console.error("ICU WebSocket connection error");
+      };
     };
+  
     connect();
-    return () => { clearTimeout(retry); ws?.close(); };
+  
+    return () => {
+      stopped = true;
+      clearTimeout(retry);
+      ws?.close();
+    };
   }, []);
 
   // eslint-disable-next-line react-hooks/purity

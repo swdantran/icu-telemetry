@@ -28,3 +28,22 @@ CREATE TABLE IF NOT EXISTS alerts (
   detail TEXT,
   acknowledged_at TIMESTAMPTZ
 );
+
+-- Register all 30 simulated patients.
+-- Existing patients are preserved.
+
+INSERT INTO patients (
+    id,
+    name,
+    bed,
+    baseline_hr,
+    baseline_spo2
+)
+SELECT
+    'p' || n,
+    'Sim Patient ' || n,
+    'ICU-' || lpad(n::text, 2, '0'),
+    75,
+    97
+FROM generate_series(1, 30) AS g(n)
+ON CONFLICT (id) DO NOTHING;
